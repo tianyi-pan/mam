@@ -10,3 +10,16 @@ License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.2
+Imports: 
+    TMB (>= 1.8.1),
+    stats,
+    Matrix,
+    methods,
+    mvQuad,
+    lme4,
+    mgcv
+Suggests:
+  numDeriv,
+  trustOptim
+LinkingTo: 
+    TMB
