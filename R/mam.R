@@ -289,7 +289,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
       Q = ghqnodes,w = ghqweights
     )
     margmeantemp <- TMB::MakeADFun(
-      data = c("marginal_mean",tmbdatamarg),
+      data = c(model = "marginal_mean",tmbdatamarg),
       parameters = paramlist,
       silent = TRUE,
       DLL = "mam_TMBExports"
@@ -395,8 +395,8 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   ## Return results
   mam <- list(fitted = mamest,fitted_se = sqrt(mamestvar),coef_se = sqrt(mamcoefvar),
               coeflin = mamlincoefs, coefsmooth = mamsmoothcoefs,logsmoothing = loglambdaest,Xpred = Xpred)
-  variance <- list(sigma = Sig,theta = thetaest,mamvarfactor_cond=mamvarfactor_cond,mamvarfactor_marg=mamvarfactor_marg)
-  conditional <- NULL
+  variance <- list(sigma = Sig,theta = thetaest,lambda=exp(loglambdaest),mamvarfactor_cond=mamvarfactor_cond,mamvarfactor_marg=mamvarfactor_marg)
+  conditional <- list(predU = matrix(tmbU,nrow=length(unique(dat$id)),byrow=TRUE))
   if (retcond) {
     conditional <- list(fitted = as.numeric(condest),fitted_se = sqrt(as.numeric(condvar)),
                         coeflin = condlincoefs, coefsmooth = condsmoothcoefs, var = condvarmat,
