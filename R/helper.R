@@ -55,3 +55,8 @@ splice <- function(v,t,j) {
   if (j>(n+1)) stop("j must be <= n+1")
   c(v[1:(j-1)],t,v[j:n])
 }
+
+# Not exported: anyInf
+anyInf <- function(x){
+  sum(is.infinite(x))>0
+}

@@ -23,3 +23,5 @@ Suggests:
   trustOptim
 LinkingTo: 
     TMB
+Depends: 
+    R (>= 2.10)

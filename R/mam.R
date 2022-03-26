@@ -138,15 +138,15 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     Lind = as.integer(reform$reTrms$Lind-1)[],
     diagind = as.integer(reform$reTrms$theta), # Diagonals initialized to 1, off-diags to 0.
     y = stats::model.frame(re,dat)[,1], # Response
-    M = as.integer(length(reform$reTrms$Lind)), # Number of groups
-    s = as.integer(length(reform$reTrms$theta)), # Dimension of random effects per group
+    # M = as.integer(length(reform$reTrms$Lind)), # Number of groups
+    # s = as.integer(length(reform$reTrms$theta)), # Dimension of random effects per group
     p = as.integer(numsmooth), # Number of smooth terms
     r = r # Rank of each smooth
   )
   tmbparams <- with(tmbdat,list(
     betaF = rep(0,ncol(XF)),
     bR = rep(0,ncol(XR)),
-    theta = rep(0,s),
+    theta = rep(0,length(diagind)),
     logsmoothing = rep(0,p),
     U = rep(0,ncol(A))
   ))
@@ -256,6 +256,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   diagindMarg <- tmbdat$diagind # This one is the same
   # The Lind is NOT the same. TODO: unit test this for correlated and uncorrelated int/slope
   LindMarg <- seq(0,max(tmbdat$Lind))
+  # templatelist <- vector(mode='list',length=length(gpix))
 
   for (i in 1:length(gpix)) {
     # Get the vector of random effects COVARIATES
@@ -283,19 +284,20 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
       v <- splice(v,0,2)
     }
     tmbdatamarg <- list(
-      link = 1L,xf = Xfmarg[i, ],xr = Xrmarg[i, ],
+      # link = 1L,
+      xf = Xfmarg[i, ],xr = Xrmarg[i, ],
       v = v,
       Lam = LamforGHQ,Lind = LindMarg,diagind = diagindMarg,
       Q = ghqnodes,w = ghqweights
     )
-    margmeantemp <- TMB::MakeADFun(
+    tmp <- TMB::MakeADFun(
       data = c(model = "marginal_mean",tmbdatamarg),
       parameters = paramlist,
       silent = TRUE,
       DLL = "mam_TMBExports"
     )
-    gpix[i] <- margmeantemp$fn(paramvec) # NOTE: logit marg prob
-    J[i, ] <- methods::as(margmeantemp$gr(paramvec),'sparseVector')
+    gpix[i] <- tmp$fn(paramvec) # NOTE: logit marg prob
+    J[i, ] <- methods::as(tmp$gr(paramvec),'sparseVector')
   }
   dt <- difftime(Sys.time(),tm,units = 'secs')
   if (verbose) cat("finished, took",round(dt),"seconds.\n")
@@ -395,13 +397,19 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   ## Return results
   mam <- list(fitted = mamest,fitted_se = sqrt(mamestvar),coef_se = sqrt(mamcoefvar),
               coeflin = mamlincoefs, coefsmooth = mamsmoothcoefs,logsmoothing = loglambdaest,Xpred = Xpred)
-  variance <- list(sigma = Sig,theta = thetaest,lambda=exp(loglambdaest),mamvarfactor_cond=mamvarfactor_cond,mamvarfactor_marg=mamvarfactor_marg)
+  variance <- list(sigma = Sig,
+                   theta = thetaest,
+                   lambda=exp(loglambdaest),
+                   mamvarfactor_cond=mamvarfactor_cond,
+                   mamvarfactor_marg=mamvarfactor_marg,
+                   optresults = opt)
   conditional <- list(predU = matrix(tmbU,nrow=length(unique(dat$id)),byrow=TRUE))
+  marginal <- list(prob = ilogit(gpix))
   if (retcond) {
-    conditional <- list(fitted = as.numeric(condest),fitted_se = sqrt(as.numeric(condvar)),
+    conditional <- c(conditional,list(fitted = as.numeric(condest),fitted_se = sqrt(as.numeric(condvar)),
                         coeflin = condlincoefs, coefsmooth = condsmoothcoefs, var = condvarmat,
                         theta=Sig, lambda=exp(loglambdaest),
-                        predU = matrix(tmbU,nrow=length(unique(dat$id)),byrow=TRUE) )
+                        predU = matrix(tmbU,nrow=length(unique(dat$id)),byrow=TRUE) ))
   }
-  list(mam = mam,conditional = conditional,variance = variance,optimization = opt)
+  list(mam = mam,conditional = conditional,marginal=marginal,variance = variance)
 }

@@ -8,7 +8,7 @@ Type marginal_mean(objective_function<Type>* obj){
   using namespace Eigen;
 
   // DATA
-  DATA_INTEGER(link); // See "valid_link" above for coding
+  // DATA_INTEGER(link); // See "valid_link" above for coding
   DATA_VECTOR(xf);
   DATA_VECTOR(xr);
   DATA_VECTOR(v);
@@ -49,7 +49,7 @@ Type marginal_mean(objective_function<Type>* obj){
     }
 
   // Compute output
-  double pi = 3.141592653589793115998;
+  // double pi = 3.141592653589793115998;
   Type out = 0;
   vector<Type> tmp(Lam.rows());
   vector<Type> Qi(Q.cols());
@@ -60,7 +60,8 @@ Type marginal_mean(objective_function<Type>* obj){
     tmp = Lam * Qi;
     vTz = (v*tmp).sum();
     // ONLY IMPLEMENTED FOR LOGIT CURRENTLY
-    out += (1.0 / (1.0 + exp(-1.0*(xTb+vTz,link))))*w(i);
+    // out += (1.0 / (1.0 + exp(-1.0*(xTb+vTz))))*w(i);
+    out += invlogit(xTb+vTz) * w(i);
     // out+=1;
   }
   // Return g(mu). ONLY IMPLEMENTED FOR LOGIT CURRENTLY

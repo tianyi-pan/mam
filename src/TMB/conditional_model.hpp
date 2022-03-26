@@ -32,10 +32,10 @@ Type conditional_model(objective_function<Type>* obj){
   PARAMETER_VECTOR(U) // Random effects
 
     // DIMENSIONS
-    // Input the dimensions as data, integer types
-    DATA_INTEGER(M); // Number of random effects vectors
-  DATA_INTEGER(s); // Dimension of each random effects vector (same)
-  int Udim = M*s; // Total number of random effects "parameters", i.e. length(U)
+  // Input the dimensions as data, integer types
+  // DATA_INTEGER(M); // Number of random effects vectors
+  // DATA_INTEGER(s); // Dimension of each random effects vector (same)
+  // int Udim = M*s; // Total number of random effects "parameters", i.e. length(U)
   DATA_INTEGER(p); // Number of smooth terms
   DATA_IVECTOR(r); // Vector of dimension of each smooth term. sum(r) = dim(bR), length(r) = p
   int bdim = r.sum();
