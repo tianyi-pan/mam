@@ -9,3 +9,7 @@
 */.so
 */*/.o
 */*/.so
+src/*.so
+src/*.o
+src/TMB/*.so
+src/TMB/*.o
