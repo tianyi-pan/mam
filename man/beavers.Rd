@@ -27,6 +27,7 @@ Data on beaver foraging behaviour from Lodberg-Holm et al (2021).
 }
 \references{
 Lodberg-Holm, H. K. (2021). Replication data for: Size is not everything: Differing activity and foraging patterns between the sexes in a monomorphic mammal. \url{https://doi.org/10.23642/usn.14191427.v1}
+
 Lodberg-Holm, H. K., Steyaert, S., Reinhardt, S., and Rosell, F. (2021). Size is not everything: differing activity and foraging patterns between the sexes in a monomorphic mammal. Behavioral Ecology and Sociobiology 75, 1–14.\url{https://doi.org/10.1007/s00265-021-03010-7}
 }
 \keyword{datasets}
