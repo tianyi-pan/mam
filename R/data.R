@@ -2,14 +2,23 @@
 
 #' Beavers
 #'
-#' Data on Beavers that Glen found. TODO: Glen to write this documentation. Also,
-#' Glen to include only rows and columns that are actually needed in the dataset.
+#' Data on beaver foraging behaviour from Lodberg-Holm et al (2021). 
+#' 
 #'
-#' @format A dataframe with ... rows and ... columns
+#' @format A dataframe with 3311 rows and 7 columns.
 #' \describe{
-#' \item{column1}{what's in the first column}
-#' \item{column2}{what's in the second column}
+#' \item{y}{An indicator of whether beaver foraged on trees/shrubs or other food (1= trees or shrubs, 0=other)}
+#' \item{id}{Beaver identifier (factor variable)}
+#' \item{time}{Day of year (between 1 and 365)}
+#' \item{sex}{Sex (F/M)}
+#' \item{timeF}{Interaction term for time and Sex (equal to time when Sex=F, 0 otherwise)}
+#' \item{timeM}{Interaction term for time and Sex (equal to time when Sex=M, 0 otherwise)}
+#' \item{year}{Year of observation (2000, 20006 or 2007)}
 #' }
 #'
-#' @source A url for where the data came from.
+#' @source \url{https://usn.figshare.com/articles/dataset/Replication_data_for_Size_is_not_everything_Differing_activity_and_foraging_patterns_between_the_sexes_in_a_monomorphic_mammal/14191427} For details see: Lodberg-Holm et al (2021).
+#' 
+#' @references Lodberg-Holm, H. K. (2021). Replication data for: Size is not everything: Differing activity and foraging patterns between the sexes in a monomorphic mammal. \url{https://doi.org/10.23642/usn.14191427.v1}
+#' 
+#' Lodberg-Holm, H. K., Steyaert, S., Reinhardt, S., and Rosell, F. (2021). Size is not everything: differing activity and foraging patterns between the sexes in a monomorphic mammal. Behavioral Ecology and Sociobiology 75, 1–14.\url{https://doi.org/10.1007/s00265-021-03010-7}
 "beavers"
