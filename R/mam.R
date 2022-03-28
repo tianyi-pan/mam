@@ -35,6 +35,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   varmethod <- control$varmethod[1]
   absorbcons <- TRUE # Do NOT change this.
   verbose <- control$verbose
+  centered <- control$centered
   k <- control$k
   retcond <- control$retcond
   ## END SETUP CONTROL ##
@@ -70,12 +71,12 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     URlist <- lapply(URlist,cbind) # Ensure they stay matrices
     UFlist <- lapply(UFlist,cbind) # Ensure they stay matrices
 
-    UR <- bdiag(URlist)
-    UF <- bdiag(UFlist)
+    UR <- Matrix::bdiag(URlist)
+    UF <- Matrix::bdiag(UFlist)
     # if m=1 UF gets coerced to numeric
     if (!is.matrix(UF)) UF <- cbind(UF)
 
-    Dpi <- Diagonal(sum(r),1 / sqrt(Reduce(c,lapply(lapply(EE,'[[','values'),function(x) x[x>.Machine$double.eps]))))
+    Dpi <- Matrix::Diagonal(sum(r),1 / sqrt(Reduce(c,lapply(lapply(EE,'[[','values'),function(x) x[x>.Machine$double.eps]))))
 
     Xlist <- lapply(SS,'[[','X')
     X <- Reduce(cbind,Xlist)
@@ -133,13 +134,11 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   tmbdat <- list(
     XF = as.matrix(Xf),
     XR = as.matrix(Xr),
-    A = methods::as(t(reform$reTrms$Zt),'dgTMatrix'),
-    Lam = methods::as(t(reform$reTrms$Lambdat),'dgTMatrix'),
+    A = methods::as(Matrix::t(reform$reTrms$Zt),'dgTMatrix'),
+    Lam = methods::as(Matrix::t(reform$reTrms$Lambdat),'dgTMatrix'),
     Lind = as.integer(reform$reTrms$Lind-1)[],
     diagind = as.integer(reform$reTrms$theta), # Diagonals initialized to 1, off-diags to 0.
     y = stats::model.frame(re,dat)[,1], # Response
-    # M = as.integer(length(reform$reTrms$Lind)), # Number of groups
-    # s = as.integer(length(reform$reTrms$theta)), # Dimension of random effects per group
     p = as.integer(numsmooth), # Number of smooth terms
     r = r # Rank of each smooth
   )
@@ -162,6 +161,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   X <- with(tmbdat,cbind(XF,XR))
   Xmarg <- cbind(Xfmarg,Xrmarg)
   Xpred <- cbind(Xfpred,Xrpred)
+  if(centered) Xpred <- sweep(Xpred,2,colMeans(Xpred),'-') # Return centered smooths.
 
   if (method == 'BFGS') {
     opt <- with(template,stats::optim(par,fn,gr,method='BFGS',hessian=TRUE))

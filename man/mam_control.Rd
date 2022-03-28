@@ -34,6 +34,9 @@ the point estimate used. Setting \code{varmethod=0} computes the \code{LDL} deco
 using \code{varmethod=1}.}
 \item{verbose}{Default \code{FALSE}. Print progress and diagnostic information as the function proceeds with
 computations?}
+\item{centered} Default \code{FALSE}, return centered smooths? If \code{TRUE}, the smooth predictions
+returned will have their means subtracted such that they have mean zero across the supplied
+covariate values for predictions, with uncertainty estimates suitably adjusted.
 }
 }
 \examples{
