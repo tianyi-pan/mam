@@ -29,7 +29,7 @@
 #' @examples
 #' ## Not run
 #'
-mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),...) {
+mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,est.fun = FALSE,control=mam_control(),...) {
   ## SETUP CONTROL ##
   method <- control$method[1]
   varmethod <- control$varmethod[1]
@@ -162,6 +162,8 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   Xmarg <- cbind(Xfmarg,Xrmarg)
   Xpred <- cbind(Xfpred,Xrpred)
   if(centered) Xpred <- sweep(Xpred,2,colMeans(Xpred),'-') # Return centered smooths.
+
+  if(est.fun) Xpred[,apply(Xpred, MARGIN = 2, sd) < 1e-3] <- 0
 
   if (method == 'BFGS') {
     opt <- with(template,stats::optim(par,fn,gr,method='BFGS',hessian=TRUE))
