@@ -3,4 +3,5 @@
 ^LICENSE\.md$
 ^.*\.rds$
 ^.*\.github$
+^Rplots.pdf$
 

@@ -134,8 +134,11 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   tmbdat <- list(
     XF = as.matrix(Xf),
     XR = as.matrix(Xr),
-    A = methods::as(Matrix::t(reform$reTrms$Zt),'dgTMatrix'),
-    Lam = methods::as(Matrix::t(reform$reTrms$Lambdat),'dgTMatrix'),
+    # A = methods::as(Matrix::t(reform$reTrms$Zt),'dgTMatrix'),
+    # Lam = methods::as(Matrix::t(reform$reTrms$Lambdat),'dgTMatrix'),
+    A = methods::as(Matrix::t(reform$reTrms$Zt),'TsparseMatrix'),
+    Lam = methods::as(Matrix::t(reform$reTrms$Lambdat),'TsparseMatrix'),
+
     Lind = as.integer(reform$reTrms$Lind-1)[],
     diagind = as.integer(reform$reTrms$theta), # Diagonals initialized to 1, off-diags to 0.
     y = stats::model.frame(re,dat)[,1], # Response
@@ -172,7 +175,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
       x = par,
       fn = fn,
       gr = gr,
-      hs = function(x) as(numDeriv::jacobian(gr,x),'dgCMatrix'),
+      hs = function(x) methods::as(methods::as(numDeriv::jacobian(gr,x),'generalMatrix'),'CsparseMatrix'),
       method = 'Sparse'
     )))
   } else {
@@ -251,7 +254,8 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   if (is.numeric(LamforGHQ)) {
     # Guard against 1d case where it converts to numeric
     LamforGHQ <- as.matrix(LamforGHQ)
-    LamforGHQ <- methods::as(LamforGHQ,'dgTMatrix')
+    # LamforGHQ <- methods::as(LamforGHQ,'dgTMatrix')
+    LamforGHQ <- methods::as(methods::as(methods::as(LamforGHQ, "dMatrix"), "generalMatrix"), "TsparseMatrix")
   }
   diagindMarg <- tmbdat$diagind # This one is the same
   # The Lind is NOT the same. TODO: unit test this for correlated and uncorrelated int/slope
@@ -329,7 +333,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
 
     # Compute the "marginal" variance factor
     margidx <- (1:ncol(H))[which(fullnames %in% fixparam)]
-    Hmarg <- methods::as(opt$hessian,'dgCMatrix')
+    Hmarg <- methods::as(methods::as(opt$hessian,'generalMatrix'),'CsparseMatrix')
     Lmarg <- Matrix::Cholesky(Hmarg,perm=TRUE,LDL=TRUE)
     Dmarg <- Matrix::solve(Lmarg,system="D")
     Jmarg <- J[ ,margidx]
