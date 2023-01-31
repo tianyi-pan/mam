@@ -1,6 +1,6 @@
 ### Misc Helper Functions ###
 
-#' Create an emprty sparse matrix
+#' Create an empty sparse matrix
 #'
 #' Wrapper for new('dgCMatrix',...). Creates an empty sparse \code{dgCMatrix}
 #' of specified dimension.
@@ -18,6 +18,29 @@
 #'
 newsparsemat <- function(n,m) {
   methods::new('dgCMatrix',Dim=as.integer(c(n,m)),p=rep(0L,m+1),i=integer(0),x=numeric(0))
+}
+
+#' Flatten a block-diagonal sparse matrix
+#'
+#' Take a n x d block diagonal matrix with blocks of dimension m x p
+#' and flatten to a (dense) matrix of dimension n x p
+#'
+#' @param Z Block diagonal matrix with equal-sized blocks (don't have to be square)
+#' @param m Number of rows in each block
+#' @param p Number of columns in each block
+#'
+#' @return A dense matrix with the appropriate structure
+#'
+#' @export
+#'
+flatten_bdmat <- function(Z,n,d) {
+  # Z: sparse block diagonal matrix to flatten
+  # n: block row dimension
+  # d: block column dimension
+  p <- ncol(Z)/d
+  ZT <- methods::as(Z,'TsparseMatrix')
+  ZT@j <- as.integer(rep(rep(0:(d-1),each=n),times=p))
+  as.matrix(ZT[ ,1:d])
 }
 
 #' @name logit

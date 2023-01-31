@@ -75,11 +75,21 @@ Type conditional_model(objective_function<Type>* obj){
 
   // NEGATIVE log priors
   double pi = 3.141592653589793115998;
-  matrix<Type> Sigma = Lam * Lam.transpose(); // Kills sparsity; I don't see any other option though.
-  Type normdens = MVNORM(Sigma)(U);
-  REPORT(normdens);
-  loglik += normdens;
+  // matrix<Type> Sigma = Lam * Lam.transpose(); // Kills sparsity; I don't see any other option though.
+  // Type normdens = MVNORM(Sigma)(U);
+  // REPORT(normdens);
+  // loglik += normdens;
 
+  // Do this without destroying sparsity
+  // Assume a single group's Lam only is passed in, like in the marginal template
+  int d = Lam.cols();
+  tempitr = 0;
+  matrix<Type> Sigma = Lam * Lam.transpose(); // Now Lam is small and dense
+  MVNORM_t<Type> Ndens(Sigma);
+  while(tempitr < U.size()) {
+    loglik += Ndens(U.segment(tempitr,d));
+    tempitr += d;
+  }
 
   // bR
   // loglik -= -0.5*log(2.0*pi)*r +0.5*r*log(lambda) - lambda * (bR*bR).sum() / (2.0);

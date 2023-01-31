@@ -99,7 +99,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     }
 
     dt <- difftime(Sys.time(),tm,units = 'secs')
-    if (verbose) cat("finished, took",round(dt),"seconds.\n")
+    if (verbose) cat("finished, took",round(dt,4),"seconds.\n")
   }
   # END SMOOTHS #
 
@@ -112,7 +112,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     Xfmarg <- cbind(stats::model.matrix(fe,data=margdat)[,-1],Xfmarg) # same for marg
     Xfpred <- cbind(stats::model.matrix(fe,data=preddat)[,-1],Xfpred) # same for pred
     dt <- difftime(Sys.time(),tm,units = 'secs')
-    if (verbose) cat("finished, took",round(dt),"seconds.\n")
+    if (verbose) cat("finished, took",round(dt,4),"seconds.\n")
   }
 
   # Finally, add an intercept if not already present
@@ -131,15 +131,17 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   tm <- Sys.time()
   if (verbose) cat("Fitting conditional model... ")
   reform <- lme4::lFormula(re,data=dat)
+  redim <- Reduce(sum,lapply(reform$reTrms$cnms,length))
+  LamforCond <- methods::as(Matrix::t(reform$reTrms$Lambdat)[1:redim,1:redim],'TsparseMatrix')
   tmbdat <- list(
     XF = as.matrix(Xf),
     XR = as.matrix(Xr),
     # A = methods::as(Matrix::t(reform$reTrms$Zt),'dgTMatrix'),
     # Lam = methods::as(Matrix::t(reform$reTrms$Lambdat),'dgTMatrix'),
     A = methods::as(Matrix::t(reform$reTrms$Zt),'TsparseMatrix'),
-    Lam = methods::as(Matrix::t(reform$reTrms$Lambdat),'TsparseMatrix'),
+    Lam = LamforCond,
 
-    Lind = as.integer(reform$reTrms$Lind-1)[],
+    Lind = as.integer(reform$reTrms$Lind-1)[1:length(LamforCond@x)],
     diagind = as.integer(reform$reTrms$theta), # Diagonals initialized to 1, off-diags to 0.
     y = stats::model.frame(re,dat)[,1], # Response
     p = as.integer(numsmooth), # Number of smooth terms
@@ -204,15 +206,27 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     condprecmat <- TMB::sdreport(template,getJointPrecision = TRUE)$jointPrecision
     condidx <- which(rownames(condprecmat) %in% c('betaF','bR'))
 
-    condvarmat <- Matrix::solve(condprecmat)[condidx,condidx] ## saving in order to output ## this is potentially slow
-    condvar <- diag(Xpred %*% condvarmat %*% t(Xpred)) ##old: diag(Xpred %*% solve(condprecmat)[condidx,condidx] %*% t(Xpred))
+    # OLD:
+    # condvarmat <- Matrix::solve(condprecmat)[condidx,condidx] ## saving in order to output ## this is potentially slow
+    # condvar2 <- diag(as.matrix(Xpred %*% condvarmat %*% t(Xpred))) ##old: diag(Xpred %*% solve(condprecmat)[condidx,condidx] %*% t(Xpred))
 
-  }else{
+    # NEW:
+    Cchol <- tryCatch(Matrix::Cholesky(condprecmat,LDL = FALSE,perm = FALSE),error = function(e) e,warning = function(w) w)
+    if (inherits(Cchol,'condition')) {
+      condvar <- NULL
+      retcond <- FALSE # for later
+    } else {
+      newX <- newsparsemat(ncol(condprecmat),nrow(Xpred))
+      newX[condidx, ] <- t(Xpred)
+      condvar <- Matrix::colSums(Matrix::solve(Cchol,newX,system="L")^2)
+    }
+
+    }else{
     condvar <- condvarmat <- NULL
   }
 
   dt <- difftime(Sys.time(),tm,units = 'secs')
-  if (verbose) cat("finished, took",round(dt),"seconds.\n")
+  if (verbose) cat("finished, took",round(dt,4),"seconds.\n")
   ## END CONDITIONAL MODEL ##
 
   #############################################################################
@@ -231,11 +245,11 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   )
 
   paramvec <- Reduce(c,paramlist)
-  J <- newsparsemat(length(gpix),length(paramvec))
+  # J <- newsparsemat(length(gpix),length(paramvec))
 
   # GHQ grid
   renum <- length(lapply(reform$reTrms$cnms,length))
-  redim <- Reduce(sum,lapply(reform$reTrms$cnms,length))
+
   ghqgrid <- mvQuad::createNIGrid(dim = redim,type = 'GHe',level = k)
   ghqnodes <- as.matrix(mvQuad::getNodes(ghqgrid)); class(ghqnodes) <- 'matrix'
   ghqweights <- as.numeric(mvQuad::getWeights(ghqgrid))
@@ -247,7 +261,9 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
 
   # Get marginal RE design matrix
   reformmarg <- lme4::lFormula(re,data=margdat)
-  Zmarg <- t(reformmarg$reTrms$Zt)
+  Zmarg <- Matrix::t(reformmarg$reTrms$Zt)
+  # TODO: unequal group sizes
+  Zflat <- flatten_bdmat(Zmarg,unique(table(reformmarg$reTrms$flist$id)),redim)
 
   # Get a single subject's RE lambda and Lind and diagind
   LamforGHQ <- tmbdat$Lam[1:redim,1:redim]
@@ -262,49 +278,65 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   LindMarg <- seq(0,max(tmbdat$Lind))
   # templatelist <- vector(mode='list',length=length(gpix))
 
-  for (i in 1:length(gpix)) {
-    # Get the vector of random effects COVARIATES
-    # NOTE: in the single group case, this should be (1,z) where z is the variable that there is a
-    # random slope for.
-    # Problem: when z = 0, lme4 doesn't store it as a zero, it stores it as an empty space
-    # So the dimension of Zmarg[i, ] is less than redim, and this causes an error
-    # in TMB due to mismatched dimensions
-    # So check the dimension of v = Zmarg[i, ]. If it's less than redim, pad it
-    # with zeros according to renum.
-    # THIS HAS NOT BEEN THOROUGHLY TESTED, and PROBABLY DOES NOT WORK for multiple
-    # grouping factors
-    # TODO: test this for multiple grouping factors
-    # TODO: implement a hack where you just add a small number to data zeroes avoid this.
-    if (verbose) {
-      if ((i-1)%%10==0) {
-        cat(paste0("\nMarginal mean: i = ",i))
-      } else {
-        cat(",",i)
-      }
-    }
-    v <- as.numeric(methods::as(Zmarg[i, ],'sparseVector')@x)
-    if (length(v) < redim) {
-      # Add a zero in the second place
-      v <- splice(v,0,2)
-    }
-    tmbdatamarg <- list(
-      # link = 1L,
-      xf = Xfmarg[i, ],xr = Xrmarg[i, ],
-      v = v,
-      Lam = LamforGHQ,Lind = LindMarg,diagind = diagindMarg,
-      Q = ghqnodes,w = ghqweights
-    )
-    tmp <- TMB::MakeADFun(
-      data = c(model = "marginal_mean",tmbdatamarg),
-      parameters = paramlist,
-      silent = TRUE,
-      DLL = "mam_TMBExports"
-    )
-    gpix[i] <- tmp$fn(paramvec) # NOTE: logit marg prob
-    J[i, ] <- methods::as(tmp$gr(paramvec),'sparseVector')
-  }
+  # NEW: single template
+  tmbdatamarg <- list(
+    XF=Xfmarg,XR=Xrmarg,Z=Zflat,
+    Lam = LamforGHQ,Lind = LindMarg,diagind = diagindMarg,m=redim,
+    Q = ghqnodes,w = ghqweights
+  )
+  template_marg <- TMB::MakeADFun(
+    data = c(model = "marginal_mean2",tmbdatamarg),
+    parameters = paramlist,
+    silent = TRUE,
+    DLL = "mam_TMBExports",
+    ADreport = TRUE
+  )
+  gpix <- template_marg$fn(paramvec)
+  J <- template_marg$gr(paramvec)
+
+  # for (i in 1:length(gpix)) {
+  #   # Get the vector of random effects COVARIATES
+  #   # NOTE: in the single group case, this should be (1,z) where z is the variable that there is a
+  #   # random slope for.
+  #   # Problem: when z = 0, lme4 doesn't store it as a zero, it stores it as an empty space
+  #   # So the dimension of Zmarg[i, ] is less than redim, and this causes an error
+  #   # in TMB due to mismatched dimensions
+  #   # So check the dimension of v = Zmarg[i, ]. If it's less than redim, pad it
+  #   # with zeros according to renum.
+  #   # THIS HAS NOT BEEN THOROUGHLY TESTED, and PROBABLY DOES NOT WORK for multiple
+  #   # grouping factors
+  #   # TODO: test this for multiple grouping factors
+  #   # TODO: implement a hack where you just add a small number to data zeroes avoid this.
+  #   if (verbose) {
+  #     if ((i-1)%%10==0) {
+  #       cat(paste0("\nMarginal mean: i = ",i))
+  #     } else {
+  #       cat(",",i)
+  #     }
+  #   }
+  #   v <- as.numeric(methods::as(Zmarg[i, ],'sparseVector')@x)
+  #   if (length(v) < redim) {
+  #     # Add a zero in the second place
+  #     v <- splice(v,0,2)
+  #   }
+  #   tmbdatamarg <- list(
+  #     # link = 1L,
+  #     xf = Xfmarg[i, ],xr = Xrmarg[i, ],
+  #     v = v,
+  #     Lam = LamforGHQ,Lind = LindMarg,diagind = diagindMarg,
+  #     Q = ghqnodes,w = ghqweights
+  #   )
+  #   tmp <- TMB::MakeADFun(
+  #     data = c(model = "marginal_mean",tmbdatamarg),
+  #     parameters = paramlist,
+  #     silent = TRUE,
+  #     DLL = "mam_TMBExports"
+  #   )
+  #   gpix[i] <- tmp$fn(paramvec) # NOTE: logit marg prob
+  #   J[i, ] <- methods::as(tmp$gr(paramvec),'sparseVector')
+  # }
   dt <- difftime(Sys.time(),tm,units = 'secs')
-  if (verbose) cat("finished, took",round(dt),"seconds.\n")
+  if (verbose) cat("finished, took",round(dt,4),"seconds.\n")
   tm <- Sys.time()
   if (verbose) cat("Computing variance factor... ")
   # Joint precision from the conditional model, ordered to match the order of the params in the marginal TMB template
@@ -348,7 +380,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     Vtmarg <- newsparsemat(margdim,nrow(J))
   }
   dt <- difftime(Sys.time(),tm,units = 'secs')
-  if (verbose) cat("finished, took",round(dt),"seconds.\n")
+  if (verbose) cat("finished, took",round(dt,4),"seconds.\n")
   ## END MARGINAL MEANS ##
 
   ## MARGINAL MODEL ##
@@ -365,11 +397,11 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   mamest <- Xpred %*% mamcoef
 
   # Remove zero rows; don't affect the colsums and vastly improves speed
-  mamvarfactor_cond <- Vt[rowSums(Vt)!=0, ] %*% Xmarg %*% XtXmarginv
-  mamvarfactor_marg <- Vtmarg[rowSums(Vtmarg)!=0, ] %*% Xmarg %*% XtXmarginv
+  mamvarfactor_cond <- Vt[Matrix::rowSums(Vt)!=0, ] %*% Xmarg %*% XtXmarginv
+  mamvarfactor_marg <- Vtmarg[Matrix::rowSums(Vtmarg)!=0, ] %*% Xmarg %*% XtXmarginv
 
-  mamcoefvar <- colSums((mamvarfactor_cond)^2) + colSums((mamvarfactor_marg)^2)
-  mamestvar <- colSums((mamvarfactor_cond %*% t(Xpred))^2) + colSums((mamvarfactor_marg %*% t(Xpred))^2)
+  mamcoefvar <- Matrix::colSums((mamvarfactor_cond)^2) + Matrix::colSums((mamvarfactor_marg)^2)
+  mamestvar <- Matrix::colSums((mamvarfactor_cond %*% t(Xpred))^2) + Matrix::colSums((mamvarfactor_marg %*% t(Xpred))^2)
 
   ## separate linear and smooth coefficients
   if(!is.null(fe)){
@@ -391,10 +423,10 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   ## exponentiate diagonal terms of theta
   thetaest[as.integer(reform$reTrms$theta)==1] <- exp(thetaest[as.integer(reform$reTrms$theta)==1])
   LamforGHQ@x[] = thetaest[LindMarg+1] # zero indexing
-  Sig <- LamforGHQ%*%t(LamforGHQ)
+  Sig <- LamforGHQ%*%Matrix::t(LamforGHQ)
 
   dt <- difftime(Sys.time(),tm,units = 'secs')
-  if (verbose) cat("finished, took",round(dt),"seconds.\n")
+  if (verbose) cat("finished, took",round(dt,4),"seconds.\n")
 
   ## END MARGINAL MODEL ##
 
@@ -411,7 +443,8 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
   marginal <- list(prob = ilogit(gpix))
   if (retcond) {
     conditional <- c(conditional,list(fitted = as.numeric(condest),fitted_se = sqrt(as.numeric(condvar)),
-                        coeflin = condlincoefs, coefsmooth = condsmoothcoefs, var = condvarmat,
+                        coeflin = condlincoefs, coefsmooth = condsmoothcoefs,
+                        # var = condvarmat,
                         theta=Sig, lambda=exp(loglambdaest),
                         predU = matrix(tmbU,nrow=length(unique(dat$id)),byrow=TRUE) ))
   }
