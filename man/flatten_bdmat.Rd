@@ -9,9 +9,9 @@ flatten_bdmat(Z, n, d)
 \arguments{
 \item{Z}{Block diagonal matrix with equal-sized blocks (don't have to be square)}
 
-\item{m}{Number of rows in each block}
+\item{n}{Number of rows in each block}
 
-\item{p}{Number of columns in each block}
+\item{d}{Number of columns in each block}
 }
 \value{
 A dense matrix with the appropriate structure

@@ -271,7 +271,9 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
     # Guard against 1d case where it converts to numeric
     LamforGHQ <- as.matrix(LamforGHQ)
     # LamforGHQ <- methods::as(LamforGHQ,'dgTMatrix')
-    LamforGHQ <- methods::as(methods::as(methods::as(LamforGHQ, "dMatrix"), "generalMatrix"), "TsparseMatrix")
+    # LamforGHQ <- methods::as(methods::as(methods::as(LamforGHQ, "dMatrix"), "generalMatrix"), "TsparseMatrix")
+    LamforGHQ <- methods::as(methods::as(methods::as(Matrix::Matrix(LamforGHQ), "dMatrix"), "generalMatrix"), "TsparseMatrix")
+
   }
   diagindMarg <- tmbdat$diagind # This one is the same
   # The Lind is NOT the same. TODO: unit test this for correlated and uncorrelated int/slope
@@ -365,7 +367,9 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,control=mam_control(),.
 
     # Compute the "marginal" variance factor
     margidx <- (1:ncol(H))[which(fullnames %in% fixparam)]
-    Hmarg <- methods::as(methods::as(opt$hessian,'generalMatrix'),'CsparseMatrix')
+    # Hmarg <- methods::as(methods::as(opt$hessian,'generalMatrix'),'CsparseMatrix')
+    Hmarg <- methods::as(methods::as(Matrix::Matrix(opt$hessian),'generalMatrix'),'CsparseMatrix')
+
     Lmarg <- Matrix::Cholesky(Hmarg,perm=TRUE,LDL=TRUE)
     Dmarg <- Matrix::solve(Lmarg,system="D")
     Jmarg <- J[ ,margidx]
