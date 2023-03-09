@@ -2,7 +2,7 @@
 % Please edit documentation in R/helper.R
 \name{newsparsemat}
 \alias{newsparsemat}
-\title{Create an emprty sparse matrix}
+\title{Create an empty sparse matrix}
 \usage{
 newsparsemat(n, m)
 }
