@@ -273,7 +273,7 @@ mam <- function(smooth,re,fe,dat,margdat=dat,preddat=dat,est.fun = FALSE,control
     # Guard against 1d case where it converts to numeric
     LamforGHQ <- as.matrix(LamforGHQ)
     # LamforGHQ <- methods::as(LamforGHQ,'dgTMatrix')
-    LamforGHQ <- methods::as(methods::as(methods::as(LamforGHQ, "dMatrix"), "generalMatrix"), "TsparseMatrix")
+    LamforGHQ <- methods::as(methods::as(methods::as(Matrix::Matrix(LamforGHQ), "dMatrix"), "generalMatrix"), "TsparseMatrix")
   }
   diagindMarg <- tmbdat$diagind # This one is the same
   # The Lind is NOT the same. TODO: unit test this for correlated and uncorrelated int/slope
