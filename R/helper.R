@@ -26,8 +26,8 @@ newsparsemat <- function(n,m) {
 #' and flatten to a (dense) matrix of dimension n x p
 #'
 #' @param Z Block diagonal matrix with equal-sized blocks (don't have to be square)
-#' @param m Number of rows in each block
-#' @param p Number of columns in each block
+#' @param n Number of rows in each block
+#' @param d Number of columns in each block
 #'
 #' @return A dense matrix with the appropriate structure
 #'
